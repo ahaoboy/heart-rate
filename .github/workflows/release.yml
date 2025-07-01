@@ -36,10 +36,10 @@ jobs:
             os: windows-latest
           # - target: arm64ec-pc-windows-msvc
           #   os: windows-latest
-          - target: aarch64-unknown-linux-musl
-            os: ubuntu-24.04
-          - target: aarch64-unknown-linux-gnu
-            os: ubuntu-24.04
+          # - target: aarch64-unknown-linux-musl
+          #   os: ubuntu-24.04
+          # - target: aarch64-unknown-linux-gnu
+          #   os: ubuntu-24.04
           - target: x86_64-unknown-linux-musl
             os: ubuntu-24.04
           - target: x86_64-unknown-linux-gnu
@@ -54,7 +54,7 @@ jobs:
           components: rustfmt,clippy
           rustflags: "-A warnings"
           toolchain: "stable"
-      - name: Setup musl aarch64
+      - name: Setup ubuntu dep
         if: startsWith(matrix.os, 'ubuntu')
         run: |
           sudo apt install libdbus-1-dev pkg-config -y

@@ -158,7 +158,7 @@ pub async fn detect_monitor() -> Result<HeartRateMonitor, Error> {
                 let monitor = HeartRateMonitor::new(adapter, device_address).await;
                 return Ok(monitor);
             }
-            Err(e) => println!("Device not found: {device_name} - Error: {e}"),
+            Err(e) => eprintln!("Device not found: {device_name} - Error: {e}"),
         }
     }
     Err(Error::HeartRateMonitorNotFound)
