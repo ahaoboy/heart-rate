@@ -54,6 +54,10 @@ jobs:
           components: rustfmt,clippy
           rustflags: "-A warnings"
           toolchain: "stable"
+      - name: Setup musl aarch64
+        if: startsWith(matrix.os, 'ubuntu')
+        run: |
+          sudo apt install libdbus-1-dev pkg-config -y
 
       - name: Setup musl aarch64
         if: startsWith(matrix.target, 'aarch64-unknown-linux')
