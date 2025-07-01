@@ -1,8 +1,8 @@
-use heart_rate::detect_monitor;
+use heart_rate::create_monitor;
 
 #[tokio::main]
 async fn main() {
-    let Ok(monitor) = detect_monitor().await else {
+    let Ok(monitor) = create_monitor().await else {
         return;
     };
     let mut receiver = monitor.start_monitoring().await;

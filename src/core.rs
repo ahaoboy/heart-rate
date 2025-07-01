@@ -1,4 +1,3 @@
-// main.rs
 use btleplug::api::{Central, Manager as _, Peripheral as _};
 use btleplug::platform::{Adapter, Manager};
 use futures::stream::StreamExt;
@@ -10,7 +9,13 @@ use uuid::Uuid;
 
 // Constants
 const UUID_STR: &str = "00002a37-0000-1000-8000-00805f9b34fb";
-const SUPPORT_DEVICES: &[&str] = &["Xiaomi Smart Band 9 082F"];
+const SUPPORT_DEVICES: &[&str] = &["Xiaomi Smart Band 9", "Xiaomi Smart Band 10"];
+
+// wait 1s before scan device
+const SCAN_WAIT_TIME: u64 = 1;
+
+// mpsc channel size
+const MPSC_CHANNEL_SIZE: usize = 128;
 
 // Custom Error Type
 #[derive(thiserror::Error, Debug)]
@@ -42,7 +47,7 @@ impl HeartRateMonitor {
     }
 
     pub async fn start_monitoring(&self) -> mpsc::Receiver<u8> {
-        let (sender, receiver) = mpsc::channel(100);
+        let (sender, receiver) = mpsc::channel(MPSC_CHANNEL_SIZE);
         let adapter = self.adapter.clone();
         let device_address = self.device_address.clone();
         let adapter_arc = Arc::new(adapter);
@@ -117,7 +122,7 @@ fn parse_heart_rate(data: &[u8]) -> u8 {
     }
 }
 
-async fn get_device_address(device_name: &str) -> Result<String, Error> {
+async fn get_device_address(device_list: &[&str]) -> Result<String, Error> {
     let manager = Manager::new().await?;
     let adapters = manager.adapters().await?;
     let adapter = adapters
@@ -126,14 +131,14 @@ async fn get_device_address(device_name: &str) -> Result<String, Error> {
         .ok_or(Error::BluetoothAdaptersNotFound)?;
 
     adapter.start_scan(Default::default()).await?;
-    time::sleep(Duration::from_secs(5)).await;
+    time::sleep(Duration::from_secs(SCAN_WAIT_TIME)).await;
 
     let peripherals = adapter.peripherals().await?;
     for peripheral in peripherals {
         let properties = peripheral.properties().await?;
         if let Some(props) = properties {
             if let Some(name) = props.local_name {
-                if name == device_name {
+                if device_list.iter().any(|prefix| name.starts_with(prefix)) {
                     let address = props.address.to_string();
                     adapter.stop_scan().await?;
                     return Ok(address);
@@ -145,21 +150,19 @@ async fn get_device_address(device_name: &str) -> Result<String, Error> {
     Err(Error::DeviceNotFound)
 }
 
-pub async fn detect_monitor() -> Result<HeartRateMonitor, Error> {
-    for device_name in SUPPORT_DEVICES {
-        match get_device_address(device_name).await {
-            Ok(device_address) => {
-                let manager = Manager::new().await?;
-                let adapters = manager.adapters().await?;
-                let adapter = adapters
-                    .into_iter()
-                    .next()
-                    .ok_or(Error::BluetoothAdaptersNotFound)?;
-                let monitor = HeartRateMonitor::new(adapter, device_address).await;
-                return Ok(monitor);
-            }
-            Err(e) => eprintln!("Device not found: {device_name} - Error: {e}"),
+pub async fn create_monitor() -> Result<HeartRateMonitor, Error> {
+    match get_device_address(SUPPORT_DEVICES).await {
+        Ok(device_address) => {
+            let manager = Manager::new().await?;
+            let adapters = manager.adapters().await?;
+            let adapter = adapters
+                .into_iter()
+                .next()
+                .ok_or(Error::BluetoothAdaptersNotFound)?;
+            let monitor = HeartRateMonitor::new(adapter, device_address).await;
+            return Ok(monitor);
         }
+        Err(e) => eprintln!("Device not found: {e}"),
     }
     Err(Error::HeartRateMonitorNotFound)
 }
